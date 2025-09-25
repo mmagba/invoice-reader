@@ -145,7 +145,41 @@ export default function Home(): React.ReactElement {
   };
 
   const extractInvoiceData = async (base64ImageData: string): Promise<Omit<ExtractedInvoiceData, 'fileName'>> => {
-    const prompt = "Analyze this invoice image and extract the following information: the invoice number, the company registration number (like ABN, VAT, etc.), the final total amount due, and the primary invoice date. If a value cannot be found, return 'N/A'.";
+    const prompt = `You are analyzing an invoice image. Return ONLY a strict JSON object with keys: "invoiceNumber", "companyNumber", "totalAmount", "date".
+
+Hard requirement for companyNumber:
+- Extract the registration/tax number of the ISSUER (seller/vendor/supplier) of the invoice.
+- NEVER return the buyer/recipient/customer/client number, even if it is more prominent.
+- If unsure whether a number belongs to the issuer or the buyer, return "N/A" for companyNumber.
+
+Issuer vs buyer disambiguation:
+- ISSUER cues (use these): "From", "Supplier", "Vendor", "Seller", "Issued by", company name/logo/address in the header.
+- BUYER cues (avoid these): "Bill To", "Invoice To", "Ship To", "Customer", "Client", "Sold To", "Deliver To".
+- Registration labels you may see: ABN, ACN, VAT, GST, Company No., Registration No., Reg No., Tax ID, TIN, UTR, CIF, SIREN, SIRET, etc. Prefer the one nearest the ISSUER name/address section.
+- If both issuer and buyer numbers appear, ALWAYS choose the ISSUER’s number.
+
+Other fields:
+- totalAmount: choose the grand total / amount due ("Total", "Amount Due", "Balance Due").
+- invoiceNumber: values near "Invoice", "Invoice No", "Invoice #".
+- date: primary invoice issue date near the invoice header; prefer issue date over due date when ambiguous.
+
+Output format:
+- If any value is missing, set it to "N/A".
+- Output must be ONLY JSON with these exact keys.
+
+Examples (for guidance only):
+Example A (CORRECT — issuer number):
+Image text contains:
+  From: Alpha Pty Ltd (ABN 12 345 678 901)
+  Bill To: Beta Pty Ltd (ABN 98 765 432 109)
+  Total: $1,234.50  Invoice #: INV-1001  Date: 12/03/2024
+Return:
+  {"invoiceNumber":"INV-1001","companyNumber":"ABN 12 345 678 901","totalAmount":"$1,234.50","date":"12/03/2024"}
+
+Example B (If unsure, use N/A for companyNumber):
+Image text contains only: "Bill To: Gamma Ltd (VAT GB123456789)"
+Return:
+  {"invoiceNumber":"N/A","companyNumber":"N/A","totalAmount":"N/A","date":"N/A"}`;
 
     // Call server-side API route to keep API key secret
     const response = await fetch('/api/extract', {

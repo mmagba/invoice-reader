@@ -23,6 +23,7 @@ export async function POST(req: Request) {
 				]
 			}],
 			generationConfig: {
+				temperature: 0,
 				responseMimeType: "application/json",
 				responseSchema: {
 					type: "OBJECT",
