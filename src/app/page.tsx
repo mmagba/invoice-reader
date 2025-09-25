@@ -12,7 +12,26 @@ interface ExtractedInvoiceData {
 }
 
 // To inform TypeScript that XLSX will be available globally from the script tag
-declare const XLSX: any;
+type SheetDataRow = Record<string, string>;
+
+interface Worksheet {
+  [key: string]: unknown;
+}
+
+interface Workbook {
+  // Minimal shape sufficient for our usage
+}
+
+interface XLSXType {
+  utils: {
+    json_to_sheet: (data: SheetDataRow[]) => Worksheet;
+    book_new: () => Workbook;
+    book_append_sheet: (workbook: Workbook, worksheet: Worksheet, name: string) => void;
+  };
+  writeFile: (workbook: Workbook, filename: string) => void;
+}
+
+declare const XLSX: XLSXType;
 
 
 // Ensure invoice numbers contain digits only
