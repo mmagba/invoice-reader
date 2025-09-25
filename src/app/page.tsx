@@ -41,23 +41,27 @@ const sanitizeInvoiceNumber = (raw: string): string => {
 
 // Loader Component
 const Loader = (): React.ReactElement => (
-  <div className="flex justify-center items-center py-8">
-    <style jsx>{`
-            .loader {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #3498db;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        `}</style>
-    <div className="loader"></div>
-    <p className="ml-4 text-gray-600">Analyzing invoices with AI... This may take a moment.</p>
+  <div className="flex flex-col items-center justify-center py-12">
+    <div className="relative">
+      {/* Outer ring */}
+      <div className="w-16 h-16 border-4 border-slate-200 rounded-full"></div>
+      {/* Inner spinning ring */}
+      <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-blue-500 border-r-purple-500 rounded-full animate-spin"></div>
+      {/* Center dot */}
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse"></div>
+    </div>
+    
+    <div className="mt-6 text-center">
+      <h3 className="text-lg font-semibold text-slate-700 mb-2">Analyzing Invoices with AI</h3>
+      <p className="text-slate-500 mb-4">This may take a moment while we process your files...</p>
+      
+      {/* Progress dots */}
+      <div className="flex justify-center space-x-2">
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+        <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+        <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+      </div>
+    </div>
   </div>
 );
 
@@ -67,6 +71,7 @@ export default function Home(): React.ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultsSectionRef = useRef<HTMLDivElement>(null);
 
   // Dynamically load the xlsx library from a CDN
   useEffect(() => {
@@ -85,10 +90,39 @@ export default function Home(): React.ReactElement {
 
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const files = Array.from(event.target.files);
-      setSelectedFiles(files);
+    if (event.target.files && event.target.files.length > 0) {
+      const newFiles = Array.from(event.target.files);
+      
+      // Check if adding these files would exceed the 10-file limit
+      const totalFilesAfterAddition = selectedFiles.length + newFiles.length;
+      if (totalFilesAfterAddition > 10) {
+        setError(`Cannot add ${newFiles.length} file(s). Maximum of 10 files allowed. Currently have ${selectedFiles.length} files selected.`);
+        event.target.value = '';
+        return;
+      }
+      
+      // Check for duplicates and add only new files
+      const filesToAdd = newFiles.filter(newFile => 
+        !selectedFiles.some(existingFile => 
+          existingFile.name === newFile.name && existingFile.size === newFile.size
+        )
+      );
+      
+      if (filesToAdd.length > 0) {
+        setSelectedFiles(prevFiles => [...prevFiles, ...filesToAdd]);
+        // Clear any previous errors if files were added successfully
+        setError('');
+      }
+      
+      // Reset the input so the same files can be selected again if needed
+      event.target.value = '';
     }
+  };
+
+  const removeFile = (indexToRemove: number) => {
+    setSelectedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
+    // Clear any error messages when files are removed
+    setError('');
   };
 
   const resetUI = () => {
@@ -104,6 +138,14 @@ export default function Home(): React.ReactElement {
     }
 
     resetUI();
+    
+    // Scroll to results section immediately after clicking the button
+    setTimeout(() => {
+      resultsSectionRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
 
     const processingPromises = selectedFiles.map(file => {
       return new Promise<ExtractedInvoiceData>((resolve) => {
@@ -231,91 +273,198 @@ Return:
   };
 
   return (
-    <main className="bg-gray-50 text-gray-800 min-h-screen">
-      <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-        <header className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Invoice Data Extractor</h1>
-          <p className="text-md text-gray-600 mt-2">Upload invoice images, extract key info with AI, and export to Excel.</p>
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Background decoration */}
+      <div className="absolute inset-0 opacity-40" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+      
+      <div className="relative container mx-auto p-6 md:p-12 max-w-6xl">
+        <header className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
+            Invoice Data Extractor
+          </h1>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Upload invoice images, extract key information with AI, and export to Excel with professional precision.
+          </p>
         </header>
 
-        {/* File Upload Section */}
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-6">
-          <h2 className="text-xl font-semibold mb-4">1. Upload Invoices</h2>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileSelection}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"
-            >
-              Select Invoice Images
-            </button>
-            <p className="text-gray-500 mt-4 text-sm">
-              {selectedFiles.length > 0
-                ? `${selectedFiles.length} file(s) selected.`
-                : 'Select one or more invoice files (PNG, JPG, etc.)'}
-            </p>
+        {/* Global Error Message */}
+        {error && (
+          <div className="bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 text-red-800 px-6 py-4 rounded-lg shadow-md relative mb-8" role="alert">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <strong className="font-semibold">Error: </strong>
+                <span className="block sm:inline">{error}</span>
+              </div>
+            </div>
           </div>
-          <div className="text-center mt-4">
+        )}
+
+        {/* File Upload Section */}
+        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 mb-8">
+          <div className="flex items-center mb-6">
+            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl mr-4 shadow-lg">
+              <span className="text-white font-bold text-lg">1</span>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800">Upload Invoices</h2>
+          </div>
+          
+          <div className="relative">
+            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center bg-gradient-to-br from-slate-50 to-blue-50/50 hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileSelection}
+              />
+              
+              <div className="mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-700 mb-2">Drop your invoice files here</h3>
+                <p className="text-slate-500 mb-6">or click the button below to browse</p>
+              </div>
+              
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-8 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                disabled={selectedFiles.length >= 10}
+              >
+                {selectedFiles.length >= 10 ? 'Maximum Files Reached' : 'Choose Invoice Images'}
+              </button>
+              
+              <p className="text-slate-500 mt-6 text-sm">
+                {selectedFiles.length > 0
+                  ? `${selectedFiles.length}/10 files selected.`
+                  : 'Supports PNG, JPG, JPEG, and other image formats • Maximum 10 files'}
+              </p>
+            </div>
+          </div>
+          
+          {/* Selected Files List */}
+          {selectedFiles.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+                <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Selected Files ({selectedFiles.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 rounded-xl border border-slate-200 hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 transition-all duration-300 group">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start flex-1 min-w-0">
+                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg mr-3 flex-shrink-0">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-700 truncate" title={file.name}>{file.name}</p>
+                          <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeFile(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-lg transition-all duration-200 ml-2 flex-shrink-0"
+                        title="Remove file"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center mt-8">
             <button
               onClick={processInvoices}
-              className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition w-full md:w-auto disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-4 px-8 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 w-full md:w-auto disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center mx-auto"
               disabled={selectedFiles.length === 0 || isLoading}
             >
-              {isLoading ? 'Processing...' : 'Extract Data from Invoices'}
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Extract Data from Invoices
+                </>
+              )}
             </button>
           </div>
         </div>
 
         {/* Results Section */}
         {(isLoading || extractedData.length > 0 || error) && (
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">2. Extracted Data</h2>
+          <div ref={resultsSectionRef} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl mr-4 shadow-lg">
+                  <span className="text-white font-bold text-lg">2</span>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800">Extracted Data</h2>
+              </div>
               <button
                 onClick={downloadExcel}
-                className="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
                 disabled={extractedData.length === 0}
               >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 Download Excel
               </button>
             </div>
 
             {isLoading && <Loader />}
 
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
-                <strong className="font-bold">Error: </strong>
-                <span className="block sm:inline">{error}</span>
-              </div>
-            )}
-
             {!isLoading && extractedData.length > 0 && (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
                 <table className="min-w-full bg-white">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-gradient-to-r from-slate-50 to-blue-50">
                     <tr>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Number</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                      <th className="py-4 px-6 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Invoice</th>
+                      <th className="py-4 px-6 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Invoice Number</th>
+                      <th className="py-4 px-6 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Company Number</th>
+                      <th className="py-4 px-6 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Date</th>
+                      <th className="py-4 px-6 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Total Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-200">
                     {extractedData.map((data, index) => (
-                      <tr key={index}>
-                        <td className="py-3 px-4 text-sm text-gray-700 font-medium">{data.fileName || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{data.invoiceNumber || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{data.companyNumber || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{data.date || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{data.totalAmount || 'N/A'}</td>
+                      <tr key={index} className="hover:bg-slate-50 transition-colors duration-200">
+                        <td className="py-4 px-6 text-sm text-slate-700 font-medium">{data.fileName || 'N/A'}</td>
+                        <td className="py-4 px-6 text-sm text-slate-600">{data.invoiceNumber || 'N/A'}</td>
+                        <td className="py-4 px-6 text-sm text-slate-600">{data.companyNumber || 'N/A'}</td>
+                        <td className="py-4 px-6 text-sm text-slate-600">{data.date || 'N/A'}</td>
+                        <td className="py-4 px-6 text-sm text-slate-600 font-medium">{data.totalAmount || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -324,7 +473,14 @@ Return:
             )}
 
             {!isLoading && extractedData.length === 0 && !error && (
-              <p className="text-center text-gray-500 py-8">No data extracted yet. Please upload and process invoices.</p>
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mb-4">
+                  <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-slate-500 text-lg">No data extracted yet. Please upload and process invoices.</p>
+              </div>
             )}
           </div>
         )}
