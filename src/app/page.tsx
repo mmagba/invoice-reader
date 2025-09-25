@@ -18,9 +18,7 @@ interface Worksheet {
   [key: string]: unknown;
 }
 
-interface Workbook {
-  // Minimal shape sufficient for our usage
-}
+type Workbook = object;
 
 interface XLSXType {
   utils: {
